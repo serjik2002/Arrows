@@ -11,7 +11,6 @@ public class GridView : MonoBehaviour
     [SerializeField] private GameObject _cellPrefab;
 
     private Vector2[,] _pointPositions;
-
     public Vector2[,] PointPositions => _pointPositions;
 
     private void Awake()
@@ -27,6 +26,7 @@ public class GridView : MonoBehaviour
             for (int j = 0; j < _columns; j++)
             {
                 var cell = Instantiate(_cellPrefab, transform);
+                cell.GetComponent<GridCell>().Init(i, j, _cellSize);
                 cell.transform.position = new Vector3(
                     _startPosition.position.x + j * _cellSize,
                     _startPosition.position.y - i * _cellSize,

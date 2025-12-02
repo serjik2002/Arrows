@@ -7,15 +7,16 @@ public class LevelController : MonoBehaviour
     [SerializeField] private TextAsset _levelJsonFile;
 
     [Header("Посилання")]
-    [SerializeField] private LevelView _levelView; 
+    [SerializeField] private LevelView _levelView;
+    [SerializeField] private GridView _gridView;
+    [SerializeField] private ArrowLevelManager _arrowsGridView;
 
     private LevelModel _currentLevel;
 
     private void Start()
     {
 
-        _currentLevel = LevelLoader.LoadFromJSON(_levelJsonFile.text);
-
+        _gridView.Init(_arrowsGridView.height, _arrowsGridView.width);
         if (_currentLevel != null)
         {
             _levelView.RenderLevel(_currentLevel);

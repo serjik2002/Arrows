@@ -36,4 +36,23 @@ public class GridView : MonoBehaviour
             }
         }
     }
+
+    public void Init(int row, int col)
+    {
+        _pointPositions = new Vector2[row, col];
+        for (int i = 0; i < row; i++)
+        {
+            for (int j = 0; j < col; j++)
+            {
+                var cell = Instantiate(_cellPrefab, transform);
+                cell.GetComponent<GridCell>().Init(i, j, _cellSize);
+                cell.transform.position = new Vector3(
+                    _startPosition.position.x + j * _cellSize,
+                    _startPosition.position.y - i * _cellSize,
+                    _startPosition.position.z
+                );
+                _pointPositions[i, j] = new Vector2(cell.transform.position.x, cell.transform.position.y);
+            }
+        }
+    }
 }

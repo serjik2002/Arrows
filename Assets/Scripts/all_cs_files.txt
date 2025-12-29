@@ -1,0 +1,1003 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+public class LevelController : MonoBehaviour
+{
+    [Header("Дані")]
+    [SerializeField] private TextAsset _levelJsonFile;
+
+    [Header("Посилання")]
+    [SerializeField] private LevelView _levelView;
+    [SerializeField] private GridView _gridView;
+    [SerializeField] private ArrowLevelManager _arrowsGridView;
+
+    private LevelModel _currentLevel;
+
+    private void Start()
+    {
+
+        _gridView.Init(_arrowsGridView.height, _arrowsGridView.width);
+        if (_currentLevel != null)
+        {
+            _levelView.RenderLevel(_currentLevel);
+            PrintGridToConsole(_currentLevel);
+        }
+    }
+
+    private void Update()
+    {
+        // Обробка кліку лівою кнопкою
+        if (Input.GetMouseButtonDown(0))
+        {
+            ProcessClick();
+        }
+    }
+
+    private void ProcessClick()
+    {
+        if (_currentLevel == null) return;
+
+        // 1. Стріляємо променем (Raycast) в точку мишки
+        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
+
+        // 2. Перевіряємо, чи попали в щось
+        if (hit.collider != null)
+        {
+            // Шукаємо компонент GridCell на об'єкті, в який попали
+            GridCell cell = hit.collider.GetComponent<GridCell>();
+
+            if (cell != null)
+            {
+                HandleCellClick(cell.X, cell.Y);
+            }
+        }
+    }
+
+    private void HandleCellClick(int x, int y)
+    {
+        // 1. Питаємо у Моделі: Яка стрілка знаходиться в цій клітинці?
+        // (Тобі треба додати метод GetArrowIdAt в LevelModel, якщо його немає, див. нижче)
+        int arrowId = _currentLevel.GetArrowIdAt(y, x);
+
+        // Якщо клітинка пуста (0) або маска (-1) - ігноруємо
+        if (arrowId <= 0) return;
+
+        // 2. Питаємо у Моделі: Чи може ця стрілка полетіти?
+        if (_currentLevel.CanArrowFlyAway(arrowId))
+        {
+            Debug.Log($"Стрілка {arrowId} полетіла!");
+
+            // А. Видаляємо логічно (звільняємо матрицю)
+            _currentLevel.RemoveArrow(arrowId);
+
+            // Б. Видаляємо візуально (зі сцени)
+            _levelView.RemoveVisualArrow(arrowId);
+        }
+        else
+        {
+            Debug.Log($"Стрілка {arrowId} заблокована!");
+            // Тут можна додати ефект "трусіння" (Wiggle animation)
+        }
+    }
+
+    private void PrintGridToConsole(LevelModel model)
+    {
+        string output = "Level Matrix:\n";
+
+        // СТАНДАРТ: i (рядки), j (стовпці)
+        for (int i = 0; i < model.Height; i++)
+        {
+            for (int j = 0; j < model.Width; j++)
+            {
+                // Доступ [i, j]
+                int id = model.OccupiedGrid[i, j];
+                output += (id == 0 ? "." : id.ToString()) + " ";
+            }
+            output += "\n";
+        }
+        Debug.Log(output);
+    }
+}
+using System.Collections.Generic;
+using UnityEngine;
+
+using System.Collections.Generic;
+using UnityEngine;
+
+public static class LevelLoader
+{
+    public static LevelModel LoadFromJSON(string jsonText)
+    {
+        if (string.IsNullOrEmpty(jsonText)) return null;
+
+        LevelDataDTO dto = JsonUtility.FromJson<LevelDataDTO>(jsonText);
+
+        LevelModel model = new LevelModel();
+        model.Width = dto.width;
+        model.Height = dto.height;
+
+        // Ініціалізуємо як [Rows, Cols] -> [Height, Width]
+        model.OccupiedGrid = new int[dto.height, dto.width];
+
+        foreach (var arrowData in dto.arrows)
+        {
+            ArrowModel arrowModel = new ArrowModel();
+            arrowModel.Id = arrowData.id;
+
+            List<Vector2Int> points = new List<Vector2Int>();
+            for (int k = 0; k < arrowData.cells.Length; k += 2)
+            {
+                if (k + 1 < arrowData.cells.Length)
+                {
+                    // JSON зазвичай зберігає [row, col] або [x, y], тут вважаємо що це [y, x] в масиві
+                    // Але в коді було: arrowData.cells[i] це row, i+1 це col.
+                    int y = arrowData.cells[k];     // Row
+                    int x = arrowData.cells[k + 1]; // Col
+
+                    points.Add(new Vector2Int(x, y));
+
+                    if (x >= 0 && x < model.Width && y >= 0 && y < model.Height)
+                    {
+                        // Записуємо в [Row, Col] -> [y, x]
+                        model.OccupiedGrid[y, x] = arrowData.id;
+                    }
+                }
+            }
+
+            if (points.Count > 0)
+            {
+                ArrowPoint first = new ArrowPoint { GridPosition = points[0] };
+                ArrowPoint current = first;
+
+                for (int i = 1; i < points.Count; i++)
+                {
+                    ArrowPoint nextP = new ArrowPoint { GridPosition = points[i] };
+                    current.Next = nextP;
+                    nextP.Prev = current;
+                    current = nextP;
+                }
+
+                arrowModel.StartPoint = first;
+                arrowModel.EndPoint = current;
+
+                model.AddArrow(arrowModel);
+            }
+        }
+
+        return model;
+    }
+}
+using ArrowPuzzle;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ArrowLevelManager : MonoBehaviour
+{
+    [Header("Налаштування генерації")]
+    public int width = 6;  // Columns (j)
+    public int height = 8; // Rows (i)
+    public int minLength = 2;
+    public int maxLength = 8;
+    [Range(0f, 1f)] public float turnChance = 0.6f;
+
+    [Header("Посилання")]
+    [SerializeField] private LevelView _levelView;
+
+    [Header("Налаштування камери")]
+    [SerializeField] private Camera _camera; // Перетягніть сюди Main Camera
+    [SerializeField] private float _padding = 1.5f; // Відступ від країв екрану
+
+    // ДОДАЙТЕ ЦЕ ПОСИЛАННЯ В ІНСПЕКТОРІ:
+    [SerializeField] private GridView _gridView;
+
+    private LevelModel _currentLevel;
+    private LevelGenerator _generator;
+
+    private void Awake()
+    {
+        if (_camera == null) _camera = Camera.main;
+    }
+
+    void Start()
+    {
+        _generator = new LevelGenerator();
+    }
+
+    [ContextMenu("Generate New Level")]
+    public void Generate()
+    {
+        if (_levelView == null || _gridView == null)
+        {
+            Debug.LogError("ArrowLevelManager: Не призначено LevelView або GridView!");
+            return;
+        }
+
+        // КРОК 1: Перебудовуємо візуальну сітку під нові розміри
+        // (Rows = height, Cols = width)
+        _gridView.Init(height, width);
+
+        // КРОК 2: Генеруємо логіку рівня
+        if (_generator == null) _generator = new LevelGenerator();
+        _currentLevel = _generator.GenerateLevelModel(width, height, minLength, maxLength, turnChance);
+
+        // КРОК 3: Малюємо стрілки
+        _levelView.RenderLevel(_currentLevel);
+        FitCameraToLevel();
+        Debug.Log($"Рівень {_currentLevel.Width}x{_currentLevel.Height} згенеровано.");
+    }
+
+    // ... решта коду Update, ProcessClick, HandleCellClick ...
+    // (вона залишається без змін, бо використовує _currentLevel, який ми щойно оновили)
+
+    private void Update()
+    {
+        if (Input.GetMouseButtonDown(0)) ProcessClick();
+    }
+
+    private void ProcessClick()
+    {
+        if (_currentLevel == null) return;
+        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
+
+        if (hit.collider != null)
+        {
+            var cell = hit.collider.GetComponent<GridCell>();
+            if (cell != null)
+            {
+                HandleCellClick(cell.X, cell.Y);
+            }
+        }
+    }
+
+    private void HandleCellClick(int x, int y)
+    {
+        int arrowId = _currentLevel.GetArrowIdAt(x, y);
+        if (arrowId <= 0) return;
+
+        if (_currentLevel.CanArrowFlyAway(arrowId))
+        {
+            Debug.Log($"Стрілка {arrowId} полетіла!");
+            _currentLevel.RemoveArrow(arrowId);
+            _levelView.RemoveVisualArrow(arrowId);
+            CheckWin();
+        }
+        else
+        {
+            Debug.Log($"Стрілка {arrowId} заблокована!");
+        }
+    }
+
+    private void CheckWin()
+    {
+        if (_currentLevel.Arrows.Count == 0)
+        {
+            Debug.Log("Рівень пройдено!");
+            // Invoke("Generate", 1f); // Авто-рестарт
+        }
+    }
+
+    private void FitCameraToLevel()
+    {
+        if (_camera == null) return;
+
+        float cellSize = _gridView.CellSize;
+        Vector3 startPos = _gridView.StartPosition;
+
+        // 1. Розрахунок розмірів сітки у світових одиницях
+        float gridWorldWidth = width * cellSize;
+        float gridWorldHeight = height * cellSize;
+
+        // 2. Розрахунок центру сітки
+        // X: зміщуємося від старту вправо на половину ширини, але враховуємо, що позиція клітинки - це її центр (або край, залежно від реалізації).
+        // У вашому GridView позиція - це центр об'єкта.
+        // Центр масиву точок: (Start + End) / 2
+        // StartX (col 0) = startPos.x
+        // EndX (col w-1) = startPos.x + (width - 1) * cellSize
+        float centerX = startPos.x + (width - 1) * cellSize / 2.0f;
+        float centerY = startPos.y - (height - 1) * cellSize / 2.0f; // Y йде вниз
+
+        // Переміщуємо камеру в центр (зберігаємо Z)
+        _camera.transform.position = new Vector3(centerX, centerY, _camera.transform.position.z);
+
+        // 3. Розрахунок зуму (Orthographic Size)
+        // OrthographicSize — це половина висоти екрану в одиницях Unity.
+
+        // Потрібна висота + відступи
+        float targetHeight = gridWorldHeight / 2.0f + _padding;
+
+        // Потрібна ширина + відступи (переведена у висоту через Aspect Ratio)
+        float aspect = _camera.aspect;
+        float targetWidth = (gridWorldWidth / 2.0f + _padding) / aspect;
+
+        // Вибираємо більше значення, щоб сітка влізла і по ширині, і по висоті
+        _camera.orthographicSize = Mathf.Max(targetHeight, targetWidth);
+    }
+}
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+// Простір імен для організації коду
+namespace ArrowPuzzle
+{
+    // Структура для зберігання даних змійки
+    [System.Serializable]
+    public class SnakeData
+    {
+        public int id;
+        public List<Vector2Int> cells; // Координати (x = col, y = row)
+        public Vector2Int direction;   // Напрямок руху
+        public bool removed = false;
+
+        public SnakeData(int id, List<Vector2Int> cells)
+        {
+            this.id = id;
+            this.cells = new List<Vector2Int>(cells);
+            UpdateDirection();
+        }
+
+        public Vector2Int Head => cells[cells.Count - 1];
+        public Vector2Int Tail => cells[0];
+
+        public void UpdateDirection()
+        {
+            if (cells.Count < 2)
+            {
+                direction = Vector2Int.right; // Fallback
+                return;
+            }
+            Vector2Int head = cells[cells.Count - 1];
+            Vector2Int neck = cells[cells.Count - 2];
+            direction = head - neck;
+        }
+
+        public void Flip()
+        {
+            cells.Reverse();
+            UpdateDirection();
+        }
+    }
+
+    public class LevelGenerator
+    {
+        private int width;  // Стовпці (j)
+        private int height; // Рядки (i)
+        private int[,] grid; // [Rows, Cols] -> [Height, Width]
+        private List<GenSnake> snakes;
+        private System.Random rng;
+
+        public LevelGenerator(int seed = -1)
+        {
+            rng = seed == -1 ? new System.Random() : new System.Random(seed);
+        }
+
+        public LevelModel GenerateLevelModel(int w, int h, int minLen, int maxLen, float turnChance)
+        {
+            this.width = w;
+            this.height = h;
+            // Матриця [Row, Col]
+            this.grid = new int[h, w];
+            this.snakes = new List<GenSnake>();
+
+            BuildLevelConstructive(minLen, maxLen, turnChance);
+            FillGapsClean();
+            OptimizeNoDelete();
+
+            LevelModel level = new LevelModel();
+            level.Width = w;
+            level.Height = h;
+            level.OccupiedGrid = (int[,])grid.Clone();
+
+            foreach (var snake in snakes)
+            {
+                ArrowModel arrow = new ArrowModel();
+                arrow.Id = snake.id;
+
+                ArrowPoint prevPoint = null;
+                for (int k = 0; k < snake.cells.Count; k++)
+                {
+                    Vector2Int pos = snake.cells[k];
+                    ArrowPoint p = new ArrowPoint { GridPosition = pos };
+
+                    if (prevPoint != null)
+                    {
+                        prevPoint.Next = p;
+                        p.Prev = prevPoint;
+                    }
+
+                    if (k == 0) arrow.StartPoint = p;
+                    if (k == snake.cells.Count - 1) arrow.EndPoint = p;
+
+                    prevPoint = p;
+                }
+                level.AddArrow(arrow);
+            }
+
+            return level;
+        }
+
+        private void BuildLevelConstructive(int minLen, int maxLen, float turnChance)
+        {
+            int snakeId = 1;
+            int failures = 0;
+            int maxFailures = 200;
+
+            while (failures < maxFailures)
+            {
+                var emptyCells = new List<Vector2Int>();
+
+                // --- СТАНДАРТНИЙ ЦИКЛ: Рядок (i), Стовпець (j) ---
+                for (int i = 0; i < height; i++)
+                {
+                    for (int j = 0; j < width; j++)
+                    {
+                        if (grid[i, j] == 0)
+                        {
+                            // Зберігаємо як Vector2Int(x, y) -> (j, i)
+                            emptyCells.Add(new Vector2Int(j, i));
+                        }
+                    }
+                }
+
+                if (emptyCells.Count == 0) break;
+
+                Vector2Int start = emptyCells[rng.Next(emptyCells.Count)];
+                GenSnake newSnake = CreateRandomSnake(start, minLen, maxLen, turnChance, snakeId);
+
+                if (newSnake == null) { failures++; continue; }
+
+                snakes.Add(newSnake);
+                foreach (var c in newSnake.cells) grid[c.y, c.x] = newSnake.id; // Access [row, col] -> [y, x]
+
+                if (IsLevelSolvable())
+                {
+                    snakeId++;
+                    failures = 0;
+                }
+                else
+                {
+                    foreach (var c in newSnake.cells) grid[c.y, c.x] = 0;
+                    snakes.RemoveAt(snakes.Count - 1);
+                    failures++;
+                }
+            }
+        }
+
+        private void FillGapsClean()
+        {
+            UpdateGridMap();
+            bool changed = true;
+            int iter = 0;
+            while (changed && iter++ < 5)
+            {
+                changed = false;
+                UpdateGridMap();
+                var gaps = new List<Vector2Int>();
+
+                // --- СТАНДАРТНИЙ ЦИКЛ ---
+                for (int i = 0; i < height; i++)
+                {
+                    for (int j = 0; j < width; j++)
+                    {
+                        // Перевіряємо [Row, Col] -> [i, j]
+                        if (grid[i, j] == 0) gaps.Add(new Vector2Int(j, i)); // Store (x, y)
+                    }
+                }
+
+                gaps = gaps.OrderBy(a => rng.Next()).ToList();
+
+                foreach (var gap in gaps)
+                {
+                    var neighbors = GetNeighbors(gap);
+                    var candidates = new List<(GenSnake s, bool isHead)>();
+
+                    foreach (var n in neighbors)
+                    {
+                        // Check [y, x]
+                        if (grid[n.y, n.x] != 0)
+                        {
+                            var s = snakes.Find(x => x.id == grid[n.y, n.x]);
+                            if (s == null) continue;
+
+                            bool isHead = (Mathf.Abs(s.Head.x - gap.x) + Mathf.Abs(s.Head.y - gap.y) == 1);
+                            bool isTail = (Mathf.Abs(s.cells[0].x - gap.x) + Mathf.Abs(s.cells[0].y - gap.y) == 1);
+
+                            if (isHead) candidates.Add((s, true));
+                            else if (isTail) candidates.Add((s, false));
+                        }
+                    }
+
+                    if (candidates.Count > 0)
+                    {
+                        var choice = candidates[rng.Next(candidates.Count)];
+                        if (choice.isHead)
+                        {
+                            choice.s.cells.Add(gap);
+                            choice.s.UpdateDirection();
+                        }
+                        else
+                        {
+                            choice.s.cells.Insert(0, gap);
+                            choice.s.UpdateDirection();
+                        }
+                        grid[gap.y, gap.x] = choice.s.id;
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        private GenSnake CreateRandomSnake(Vector2Int start, int minLen, int maxLen, float turnChance, int id)
+        {
+            var cells = new List<Vector2Int> { start };
+            Vector2Int curr = start;
+            int targetLen = rng.Next(minLen, maxLen + 1);
+            Vector2Int? lastDir = null;
+            var used = new HashSet<Vector2Int> { start };
+
+            for (int k = 0; k < targetLen - 1; k++)
+            {
+                var neighbors = GetNeighbors(curr)
+                    .Where(n => grid[n.y, n.x] == 0 && !used.Contains(n)) // Access [y, x]
+                    .ToList();
+
+                if (neighbors.Count == 0) break;
+
+                Vector2Int next;
+                Vector2Int? straight = null;
+                if (lastDir.HasValue)
+                {
+                    Vector2Int s = curr + lastDir.Value;
+                    if (neighbors.Contains(s)) straight = s;
+                }
+
+                if (rng.NextDouble() < turnChance || straight == null) next = neighbors[rng.Next(neighbors.Count)];
+                else next = straight.Value;
+
+                cells.Add(next);
+                used.Add(next);
+                lastDir = next - curr;
+                curr = next;
+            }
+
+            if (cells.Count < minLen) return null;
+
+            Vector2Int head = cells[cells.Count - 1];
+            Vector2Int tail = cells[0];
+            int dHead = Mathf.Min(Mathf.Min(head.x, width - 1 - head.x), Mathf.Min(head.y, height - 1 - head.y));
+            int dTail = Mathf.Min(Mathf.Min(tail.x, width - 1 - tail.x), Mathf.Min(tail.y, height - 1 - tail.y));
+            if (dTail < dHead && rng.NextDouble() > 0.2) cells.Reverse();
+
+            return new GenSnake(id, cells);
+        }
+
+        private bool IsLevelSolvable()
+        {
+            int[,] simGrid = (int[,])grid.Clone();
+            var active = new List<GenSnake>(snakes);
+            bool progress = true;
+
+            while (progress && active.Count > 0)
+            {
+                progress = false;
+                var next = new List<GenSnake>();
+                foreach (var s in active)
+                {
+                    if (CanSnakeFly(s, simGrid))
+                    {
+                        foreach (var c in s.cells) simGrid[c.y, c.x] = 0; // [y, x]
+                        progress = true;
+                    }
+                    else next.Add(s);
+                }
+                active = next;
+            }
+            return active.Count == 0;
+        }
+
+        private bool CanSnakeFly(GenSnake snake, int[,] currentGrid)
+        {
+            Vector2Int check = snake.Head + snake.direction;
+            while (check.x >= 0 && check.x < width && check.y >= 0 && check.y < height)
+            {
+                if (currentGrid[check.y, check.x] != 0) return false; // [y, x]
+                check += snake.direction;
+            }
+            return true;
+        }
+
+        private bool OptimizeNoDelete()
+        {
+            for (int k = 0; k < 500; k++)
+            {
+                if (IsLevelSolvable()) return true;
+                var bad = snakes[rng.Next(snakes.Count)];
+                bad.Flip();
+                UpdateGridMap();
+            }
+            return IsLevelSolvable();
+        }
+
+        private void UpdateGridMap()
+        {
+            grid = new int[height, width]; // [Rows, Cols]
+            foreach (var s in snakes)
+                foreach (var c in s.cells)
+                    grid[c.y, c.x] = s.id; // [y, x]
+        }
+
+        private List<Vector2Int> GetNeighbors(Vector2Int p)
+        {
+            var res = new List<Vector2Int>();
+            if (p.x > 0) res.Add(new Vector2Int(p.x - 1, p.y));
+            if (p.x < width - 1) res.Add(new Vector2Int(p.x + 1, p.y));
+            if (p.y > 0) res.Add(new Vector2Int(p.x, p.y - 1));
+            if (p.y < height - 1) res.Add(new Vector2Int(p.x, p.y + 1));
+            return res;
+        }
+    }
+
+    // Допоміжний внутрішній клас
+    public class GenSnake
+    {
+        public int id;
+        public List<Vector2Int> cells;
+        public Vector2Int direction;
+
+        public GenSnake(int id, List<Vector2Int> cells)
+        {
+            this.id = id; this.cells = new List<Vector2Int>(cells); UpdateDirection();
+        }
+        public Vector2Int Head => cells[cells.Count - 1];
+        public void UpdateDirection()
+        {
+            if (cells.Count < 2) { direction = Vector2Int.right; return; }
+            direction = cells[cells.Count - 1] - cells[cells.Count - 2];
+        }
+        public void Flip() { cells.Reverse(); UpdateDirection(); }
+    }
+}
+using UnityEngine;
+// 2. Клас, що описує одну стрілку (Логічна сутність)
+public class ArrowModel
+{
+    public int Id;
+    public ArrowPoint StartPoint; // Голова списку
+    public ArrowPoint EndPoint;   // Хвіст списку (там, де малюється стрілка)
+    public Color Color = Color.white; // Можна додати властивості, які впливають на геймплей
+}
+using System.Collections.Generic;
+using UnityEngine;
+
+public class LevelModel
+{
+    public int Width;  // Кількість стовпців (Columns)
+    public int Height; // Кількість рядків (Rows)
+
+    // Зберігаємо як [Row, Col] -> [i, j] -> [y, x]
+    public int[,] OccupiedGrid;
+
+    public Dictionary<int, ArrowModel> Arrows = new Dictionary<int, ArrowModel>();
+
+    public void AddArrow(ArrowModel arrow)
+    {
+        if (!Arrows.ContainsKey(arrow.Id))
+        {
+            Arrows.Add(arrow.Id, arrow);
+        }
+    }
+
+    public bool CanArrowFlyAway(int arrowId)
+    {
+        if (!Arrows.TryGetValue(arrowId, out ArrowModel arrow)) return false;
+
+        Vector2Int headPos = arrow.EndPoint.GridPosition;
+        Vector2Int prevPos = arrow.EndPoint.Prev.GridPosition;
+        Vector2Int direction = headPos - prevPos;
+
+        Vector2Int checkPos = headPos + direction;
+
+        while (IsInsideGrid(checkPos))
+        {
+            // Звертаємось: [y, x] (тому що Grid[Row, Col])
+            int cellValue = OccupiedGrid[checkPos.y, checkPos.x];
+
+            if (cellValue > 0) return false;
+
+            checkPos += direction;
+        }
+
+        return true;
+    }
+
+    public void RemoveArrow(int arrowId)
+    {
+        if (!Arrows.TryGetValue(arrowId, out ArrowModel arrow)) return;
+
+        ArrowPoint current = arrow.StartPoint;
+        while (current != null)
+        {
+            // Очищаємо: [y, x]
+            OccupiedGrid[current.GridPosition.y, current.GridPosition.x] = 0;
+            current = current.Next;
+        }
+
+        Arrows.Remove(arrowId);
+    }
+
+    public bool IsInsideGrid(Vector2Int pos)
+    {
+        // X - це стовпець (0..Width-1), Y - це рядок (0..Height-1)
+        return pos.x >= 0 && pos.x < Width && pos.y >= 0 && pos.y < Height;
+    }
+
+    public int GetArrowIdAt(int x, int y)
+    {
+        if (IsInsideGrid(new Vector2Int(x, y)))
+        {
+            // Повертаємо значення з рядка Y, стовпця X
+            return OccupiedGrid[y, x];
+        }
+        return -1;
+    }
+}
+using UnityEngine;
+// 1. Клас, що описує одну точку в ланцюжку (Linked List)
+public class ArrowPoint
+{
+    public Vector2Int GridPosition; // Координата на сітці [x,y]
+    public ArrowPoint Prev;         // Посилання на попередню точку
+    public ArrowPoint Next;         // Посилання на наступну точку
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+// 4. DTO (Data Transfer Objects) - чисто для читання JSON
+// (Unity JsonUtility не вміє читати складні структури, тому потрібні прості класи-посередники)
+[System.Serializable]
+public class LevelDataDTO
+{
+    public int width;
+    public int height;
+    public List<ArrowDataDTO> arrows;
+}
+
+[System.Serializable]
+public class ArrowDataDTO
+{
+    public int id;
+    public int[] cells; // Плоский масив [x,y,x,y...]
+    public Vector2Int direction; // Поки не використовуємо, бо вираховуємо математично, але хай буде
+}
+
+public class ArrowPath
+{
+    public ArrowPoint startPoint;
+    public ArrowPoint endPoint;
+}
+using UnityEngine;
+
+[RequireComponent(typeof(BoxCollider2D))]
+public class GridCell : MonoBehaviour
+{
+    public int X { get; private set; }
+    public int Y { get; private set; }
+
+    // Убрали manager, оставили только координаты и размер
+    public void Init(int x, int y, float size)
+    {
+        X = x;
+        Y = y;
+
+        // Настраиваем размер колайдера
+        var collider = GetComponent<BoxCollider2D>();
+        if (collider != null)
+        {
+            collider.size = new Vector2(size, size);
+        }
+    }
+}
+using UnityEngine;
+
+public class GridView : MonoBehaviour
+{
+    [SerializeField] private int _rows = 5;
+    [SerializeField] private int _columns = 5;
+
+    [SerializeField] private float _cellSize = 1.0f;
+    [SerializeField] private Transform _startPosition;
+    [SerializeField] private GameObject _cellPrefab;
+
+    private Vector2[,] _pointPositions;
+    public Vector2[,] PointPositions => _pointPositions;
+    public float CellSize => _cellSize;
+    public Vector3 StartPosition => _startPosition != null ? _startPosition.position : transform.position;
+
+
+
+    public void Init(int rows, int cols)
+    {
+        _rows = rows;
+        _columns = cols;
+
+        for (int k = transform.childCount - 1; k >= 0; k--)
+        {
+            GameObject child = transform.GetChild(k).gameObject;
+
+#if UNITY_EDITOR
+            if (!Application.isPlaying) DestroyImmediate(child);
+            else Destroy(child);
+#else
+            Destroy(child);
+#endif
+        }
+
+        // 2. Створення нового масиву
+        _pointPositions = new Vector2[_rows, _columns];
+
+        // 3. Генерація нових клітинок
+        // i = Рядок (Row / Y), j = Стовпець (Col / X)
+        for (int i = 0; i < _rows; i++)
+        {
+            for (int j = 0; j < _columns; j++)
+            {
+                var cell = Instantiate(_cellPrefab, transform);
+
+                // Передаємо логічні (X=j, Y=i)
+                cell.GetComponent<GridCell>().Init(j, i, _cellSize);
+
+                // Розрахунок позиції у світі
+                cell.transform.position = new Vector3(
+                    _startPosition.position.x + j * _cellSize,
+                    _startPosition.position.y - i * _cellSize,
+                    _startPosition.position.z
+                );
+
+                // Зберігаємо в [Row, Col] -> [i, j]
+                _pointPositions[i, j] = new Vector2(cell.transform.position.x, cell.transform.position.y);
+            }
+        }
+    }
+}
+using System.Collections.Generic;
+using UnityEngine;
+
+public class LevelView : MonoBehaviour
+{
+    [Header("Налаштування")]
+    [SerializeField] private GridView _gridView; // Щоб знати координати точок
+    [SerializeField] private GameObject _arrowPrefab; // Префаб лінії
+    [SerializeField] private GameObject _headPrefab;  // Префаб голови
+
+
+    private Dictionary<int, GameObject> _visualArrows = new Dictionary<int, GameObject>();
+
+    //TODO: object pooling для оптимізації
+    // Метод очистки сцени перед новим рівнем
+    public void ClearView()
+    {
+        foreach (var obj in _visualArrows.Values)
+        {
+            Destroy(obj);
+        }
+        _visualArrows.Clear();
+    }
+
+
+    public void RemoveVisualArrow(int arrowId)
+    {
+        if (_visualArrows.TryGetValue(arrowId, out GameObject arrowObj))
+        {
+            Destroy(arrowObj); // Видаляємо зі сцени
+            _visualArrows.Remove(arrowId); // Видаляємо зі словника
+        }
+    }
+
+    // Головний метод: Малює весь рівень
+    public void RenderLevel(LevelModel level)
+    {
+        ClearView(); // Про всяк випадок
+
+        foreach (var arrowModel in level.Arrows.Values)
+        {
+            RenderArrow(arrowModel);
+        }
+    }
+
+
+    private void RenderArrow(ArrowModel arrow)
+    {
+        // 1. Створюємо об'єкт лінії
+        GameObject lineObj = Instantiate(_arrowPrefab, transform);
+        lineObj.name = $"Visual_Arrow_{arrow.Id}";
+        _visualArrows.Add(arrow.Id, lineObj);
+
+        LineRenderer lr = lineObj.GetComponent<LineRenderer>();
+
+        // 2. Будуємо шлях для LineRenderer
+        List<Vector3> worldPositions = new List<Vector3>();
+        ArrowPoint current = arrow.StartPoint;
+
+        // Додаємо першу точку
+        worldPositions.Add(GridToWorld(current.GridPosition));
+
+        while (current.Next != null)
+        {
+            // Додаємо проміжні точки (згладжування кутів)
+            AddIntermediatePoints(worldPositions, current.GridPosition, current.Next.GridPosition);
+            current = current.Next;
+        }
+
+        // Застосовуємо точки до лінії
+        lr.positionCount = worldPositions.Count;
+        lr.SetPositions(worldPositions.ToArray());
+
+        // 3. Малюємо голову стрілки (в кінці шляху)
+        RenderHead(arrow, lineObj.transform);
+    }
+
+    private void RenderHead(ArrowModel arrow, Transform parent)
+    {
+        if (arrow.EndPoint == null || arrow.EndPoint.Prev == null) return;
+
+        Vector3 endPos = GridToWorld(arrow.EndPoint.GridPosition);
+        Vector3 prevPos = GridToWorld(arrow.EndPoint.Prev.GridPosition);
+
+        Vector3 dir = endPos - prevPos;
+        float zAngle = 0f;
+
+        // Перевіряємо, куди більше зміщення: по горизонталі чи вертикалі
+        if (Mathf.Abs(dir.x) > Mathf.Abs(dir.y))
+        {
+            // Рух по горизонталі
+            zAngle = (dir.x > 0) ? -90f : -270f; // Вправо : Вліво
+        }
+        else
+        {
+            // Рух по вертикалі
+            zAngle = (dir.y > 0) ? 0f : 180f; // Вгору : Вниз
+        }
+
+        Quaternion rotation = Quaternion.Euler(0, 0, zAngle);
+        Instantiate(_headPrefab, endPos, rotation, parent);
+    }
+
+
+    private void AddIntermediatePoints(List<Vector3> positions, Vector2Int from, Vector2Int to)
+    {
+        Vector2 dir = to - from;
+        int steps = (int)(Mathf.Abs(dir.x) + Mathf.Abs(dir.y));
+        if (steps > 0)
+        {
+            for (int i = 1; i <= steps; i++)
+            {
+                Vector2 stepPos = (Vector2)from + dir * i / steps;
+                positions.Add(GridToWorld(stepPos));
+            }
+        }
+    }
+
+
+    private Vector3 GridToWorld(Vector2 gridPos)
+    {
+        int x = (int)gridPos.x; // Col / j
+        int y = (int)gridPos.y; // Row / i
+
+        if (_gridView != null && _gridView.PointPositions != null)
+        {
+            // Перевіряємо розмірність масиву [Rows, Cols]
+            if (y >= 0 && y < _gridView.PointPositions.GetLength(0) && // Перевіряємо i (рядки)
+                x >= 0 && x < _gridView.PointPositions.GetLength(1))   // Перевіряємо j (стовпці)
+            {
+                // Беремо значення з [Row, Col] -> [y, x]
+                Vector2 worldPos = _gridView.PointPositions[y, x];
+                return new Vector3(worldPos.x, worldPos.y, 0);
+            }
+        }
+        return Vector3.zero;
+    }
+
+}

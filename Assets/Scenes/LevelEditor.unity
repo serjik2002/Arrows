@@ -298,6 +298,9 @@ MonoBehaviour:
   maxLength: 8
   turnChance: 1
   _levelView: {fileID: 618828941}
+  _camera: {fileID: 1606546509}
+  _padding: 1.5
+  _gridView: {fileID: 1575702158}
 --- !u!4 &1591388668
 Transform:
   m_ObjectHideFlags: 0

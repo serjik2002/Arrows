@@ -45,10 +45,10 @@ namespace ArrowPuzzle
 
     public class LevelGenerator
     {
-        private int width;
-        private int height;
-        private int[,] grid;
-        private List<GenSnake> snakes; // Внутрішній список для генерації
+        private int width;  // Стовпці (j)
+        private int height; // Рядки (i)
+        private int[,] grid; // [Rows, Cols] -> [Height, Width]
+        private List<GenSnake> snakes;
         private System.Random rng;
 
         public LevelGenerator(int seed = -1)
@@ -56,33 +56,21 @@ namespace ArrowPuzzle
             rng = seed == -1 ? new System.Random() : new System.Random(seed);
         }
 
-        // --- ГОЛОВНИЙ МЕТОД ---
         public LevelModel GenerateLevelModel(int w, int h, int minLen, int maxLen, float turnChance)
         {
-            // 1. Ініціалізація
             this.width = w;
             this.height = h;
-            this.grid = new int[w, h];
+            // Матриця [Row, Col]
+            this.grid = new int[h, w];
             this.snakes = new List<GenSnake>();
 
-            // 2. Генерація (Конструктивний метод)
-            // Будуємо основу рівня по цеглинці
             BuildLevelConstructive(minLen, maxLen, turnChance);
-
-            // 3. Заповнення дірок
-            // Щоб рівень був суцільним монолітом без пустих клітинок
             FillGapsClean();
-
-            // 4. Фінальна оптимізація (Solver)
-            // Спроба покращити розв'язність поворотами, не видаляючи блоки
             OptimizeNoDelete();
 
-            // 5. КОНВЕРТАЦІЯ (GenSnake -> ArrowModel -> LevelModel)
             LevelModel level = new LevelModel();
             level.Width = w;
             level.Height = h;
-
-            // Копіюємо сітку (grid [x,y])
             level.OccupiedGrid = (int[,])grid.Clone();
 
             foreach (var snake in snakes)
@@ -91,37 +79,27 @@ namespace ArrowPuzzle
                 arrow.Id = snake.id;
 
                 ArrowPoint prevPoint = null;
-
-                // Створюємо ланцюжок точок (Linked List для вашої моделі)
-                for (int i = 0; i < snake.cells.Count; i++)
+                for (int k = 0; k < snake.cells.Count; k++)
                 {
-                    Vector2Int pos = snake.cells[i];
+                    Vector2Int pos = snake.cells[k];
                     ArrowPoint p = new ArrowPoint { GridPosition = pos };
 
-                    // Зв'язуємо точки
                     if (prevPoint != null)
                     {
                         prevPoint.Next = p;
                         p.Prev = prevPoint;
                     }
 
-                    // Перша точка - це "хвіст" (StartPoint), остання - "голова" (EndPoint)
-                    if (i == 0) arrow.StartPoint = p;
-                    if (i == snake.cells.Count - 1) arrow.EndPoint = p;
+                    if (k == 0) arrow.StartPoint = p;
+                    if (k == snake.cells.Count - 1) arrow.EndPoint = p;
 
                     prevPoint = p;
                 }
-
-                // Додаємо готову стрілку в модель
                 level.AddArrow(arrow);
             }
 
             return level;
         }
-
-        // ------------------------------------------------------------------
-        // ПРИВАТНІ МЕТОДИ ЛОГІКИ (Вставте їх нижче в цьому ж класі)
-        // ------------------------------------------------------------------
 
         private void BuildLevelConstructive(int minLen, int maxLen, float turnChance)
         {
@@ -131,11 +109,20 @@ namespace ArrowPuzzle
 
             while (failures < maxFailures)
             {
-                // Знаходимо пусті місця
                 var emptyCells = new List<Vector2Int>();
-                for (int x = 0; x < width; x++)
-                    for (int y = 0; y < height; y++)
-                        if (grid[x, y] == 0) emptyCells.Add(new Vector2Int(x, y));
+
+                // --- СТАНДАРТНИЙ ЦИКЛ: Рядок (i), Стовпець (j) ---
+                for (int i = 0; i < height; i++)
+                {
+                    for (int j = 0; j < width; j++)
+                    {
+                        if (grid[i, j] == 0)
+                        {
+                            // Зберігаємо як Vector2Int(x, y) -> (j, i)
+                            emptyCells.Add(new Vector2Int(j, i));
+                        }
+                    }
+                }
 
                 if (emptyCells.Count == 0) break;
 
@@ -144,11 +131,9 @@ namespace ArrowPuzzle
 
                 if (newSnake == null) { failures++; continue; }
 
-                // Тимчасово додаємо
                 snakes.Add(newSnake);
-                foreach (var c in newSnake.cells) grid[c.x, c.y] = newSnake.id;
+                foreach (var c in newSnake.cells) grid[c.y, c.x] = newSnake.id; // Access [row, col] -> [y, x]
 
-                // Перевіряємо валідність
                 if (IsLevelSolvable())
                 {
                     snakeId++;
@@ -156,8 +141,7 @@ namespace ArrowPuzzle
                 }
                 else
                 {
-                    // Відкат
-                    foreach (var c in newSnake.cells) grid[c.x, c.y] = 0;
+                    foreach (var c in newSnake.cells) grid[c.y, c.x] = 0;
                     snakes.RemoveAt(snakes.Count - 1);
                     failures++;
                 }
@@ -174,9 +158,16 @@ namespace ArrowPuzzle
                 changed = false;
                 UpdateGridMap();
                 var gaps = new List<Vector2Int>();
-                for (int x = 0; x < width; x++)
-                    for (int y = 0; y < height; y++)
-                        if (grid[x, y] == 0) gaps.Add(new Vector2Int(x, y));
+
+                // --- СТАНДАРТНИЙ ЦИКЛ ---
+                for (int i = 0; i < height; i++)
+                {
+                    for (int j = 0; j < width; j++)
+                    {
+                        // Перевіряємо [Row, Col] -> [i, j]
+                        if (grid[i, j] == 0) gaps.Add(new Vector2Int(j, i)); // Store (x, y)
+                    }
+                }
 
                 gaps = gaps.OrderBy(a => rng.Next()).ToList();
 
@@ -187,14 +178,13 @@ namespace ArrowPuzzle
 
                     foreach (var n in neighbors)
                     {
-                        if (grid[n.x, n.y] != 0)
+                        // Check [y, x]
+                        if (grid[n.y, n.x] != 0)
                         {
-                            var s = snakes.Find(x => x.id == grid[n.x, n.y]);
+                            var s = snakes.Find(x => x.id == grid[n.y, n.x]);
                             if (s == null) continue;
 
-                            // Приєднуємо тільки до голови або хвоста (щоб не було діагоналей)
                             bool isHead = (Mathf.Abs(s.Head.x - gap.x) + Mathf.Abs(s.Head.y - gap.y) == 1);
-                            // Хвіст - це cells[0]
                             bool isTail = (Mathf.Abs(s.cells[0].x - gap.x) + Mathf.Abs(s.cells[0].y - gap.y) == 1);
 
                             if (isHead) candidates.Add((s, true));
@@ -215,14 +205,12 @@ namespace ArrowPuzzle
                             choice.s.cells.Insert(0, gap);
                             choice.s.UpdateDirection();
                         }
-                        grid[gap.x, gap.y] = choice.s.id;
+                        grid[gap.y, gap.x] = choice.s.id;
                         changed = true;
                     }
                 }
             }
         }
-
-        // --- Допоміжні методи для роботи BuildLevelConstructive ---
 
         private GenSnake CreateRandomSnake(Vector2Int start, int minLen, int maxLen, float turnChance, int id)
         {
@@ -232,10 +220,10 @@ namespace ArrowPuzzle
             Vector2Int? lastDir = null;
             var used = new HashSet<Vector2Int> { start };
 
-            for (int i = 0; i < targetLen - 1; i++)
+            for (int k = 0; k < targetLen - 1; k++)
             {
                 var neighbors = GetNeighbors(curr)
-                    .Where(n => grid[n.x, n.y] == 0 && !used.Contains(n))
+                    .Where(n => grid[n.y, n.x] == 0 && !used.Contains(n)) // Access [y, x]
                     .ToList();
 
                 if (neighbors.Count == 0) break;
@@ -259,7 +247,6 @@ namespace ArrowPuzzle
 
             if (cells.Count < minLen) return null;
 
-            // Gravity heuristic
             Vector2Int head = cells[cells.Count - 1];
             Vector2Int tail = cells[0];
             int dHead = Mathf.Min(Mathf.Min(head.x, width - 1 - head.x), Mathf.Min(head.y, height - 1 - head.y));
@@ -283,7 +270,7 @@ namespace ArrowPuzzle
                 {
                     if (CanSnakeFly(s, simGrid))
                     {
-                        foreach (var c in s.cells) simGrid[c.x, c.y] = 0;
+                        foreach (var c in s.cells) simGrid[c.y, c.x] = 0; // [y, x]
                         progress = true;
                     }
                     else next.Add(s);
@@ -298,7 +285,7 @@ namespace ArrowPuzzle
             Vector2Int check = snake.Head + snake.direction;
             while (check.x >= 0 && check.x < width && check.y >= 0 && check.y < height)
             {
-                if (currentGrid[check.x, check.y] != 0) return false;
+                if (currentGrid[check.y, check.x] != 0) return false; // [y, x]
                 check += snake.direction;
             }
             return true;
@@ -306,14 +293,9 @@ namespace ArrowPuzzle
 
         private bool OptimizeNoDelete()
         {
-            // Спроба покращити розкладку, якщо раптом після fillGaps з'явилися затори
-            // Але конструктивний метод і так майже гарантує розв'язок
-            for (int i = 0; i < 500; i++)
+            for (int k = 0; k < 500; k++)
             {
                 if (IsLevelSolvable()) return true;
-
-                // Якщо не розв'язується - пробуємо фліпнути рандомну
-                // (Тут спрощена логіка для стислості)
                 var bad = snakes[rng.Next(snakes.Count)];
                 bad.Flip();
                 UpdateGridMap();
@@ -323,8 +305,10 @@ namespace ArrowPuzzle
 
         private void UpdateGridMap()
         {
-            grid = new int[width, height];
-            foreach (var s in snakes) foreach (var c in s.cells) grid[c.x, c.y] = s.id;
+            grid = new int[height, width]; // [Rows, Cols]
+            foreach (var s in snakes)
+                foreach (var c in s.cells)
+                    grid[c.y, c.x] = s.id; // [y, x]
         }
 
         private List<Vector2Int> GetNeighbors(Vector2Int p)

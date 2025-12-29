@@ -119,16 +119,17 @@ public class LevelView : MonoBehaviour
 
     private Vector3 GridToWorld(Vector2 gridPos)
     {
-        int x = (int)gridPos.x;
-        int y = (int)gridPos.y;
+        int x = (int)gridPos.x; // Col / j
+        int y = (int)gridPos.y; // Row / i
 
-        // Беремо реальні координати з твого GridView
         if (_gridView != null && _gridView.PointPositions != null)
         {
-            if (x >= 0 && x < _gridView.PointPositions.GetLength(0) &&
-                y >= 0 && y < _gridView.PointPositions.GetLength(1))
+            // Перевіряємо розмірність масиву [Rows, Cols]
+            if (y >= 0 && y < _gridView.PointPositions.GetLength(0) && // Перевіряємо i (рядки)
+                x >= 0 && x < _gridView.PointPositions.GetLength(1))   // Перевіряємо j (стовпці)
             {
-                Vector2 worldPos = _gridView.PointPositions[x, y];
+                // Беремо значення з [Row, Col] -> [y, x]
+                Vector2 worldPos = _gridView.PointPositions[y, x];
                 return new Vector3(worldPos.x, worldPos.y, 0);
             }
         }

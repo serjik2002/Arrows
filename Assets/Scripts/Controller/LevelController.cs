@@ -85,11 +85,13 @@ public class LevelController : MonoBehaviour
     {
         string output = "Level Matrix:\n";
 
-        for (int y = 0; y < model.Height; y++)
+        // СТАНДАРТ: i (рядки), j (стовпці)
+        for (int i = 0; i < model.Height; i++)
         {
-            for (int x = 0; x < model.Width; x++)
+            for (int j = 0; j < model.Width; j++)
             {
-                int id = model.OccupiedGrid[x, y];
+                // Доступ [i, j]
+                int id = model.OccupiedGrid[i, j];
                 output += (id == 0 ? "." : id.ToString()) + " ";
             }
             output += "\n";

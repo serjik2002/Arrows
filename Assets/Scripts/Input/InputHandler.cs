@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class InputHandler : MonoBehaviour
 {
-    public event System.Action<GridCoordinate> OnGriddClick;
+    public event System.Action<GridCoordinate> OnGridClick;
     
     private Camera _camera;
 
@@ -27,7 +27,7 @@ public class InputHandler : MonoBehaviour
             if (cell != null)
             {
                 coord = new GridCoordinate(cell.X, cell.Y);
-                OnGriddClick?.Invoke(coord);
+                OnGridClick?.Invoke(coord);
                 return true;
             }
         }
@@ -48,6 +48,6 @@ public struct GridCoordinate
 
     public Vector2Int ToVector2Int() => new Vector2Int(Column, Row);
 
-    public static GridCoordinate FromVector2Int(Vector2Int v)
-        => new GridCoordinate(v.x, v.y);
+    public static GridCoordinate FromVector2Int(Vector2Int vector)
+        => new GridCoordinate(vector.x, vector.y);
 }

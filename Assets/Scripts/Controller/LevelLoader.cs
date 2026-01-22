@@ -64,4 +64,41 @@ public static class LevelLoader
 
         return model;
     }
+
+    public static string SaveToJSON(LevelModel model)
+    {
+        LevelDataDTO dto = new LevelDataDTO();
+        dto.width = model.Width;
+        dto.height = model.Height;
+        dto.arrows = new List<ArrowDataDTO>();
+
+        foreach (var arrowModel in model.Arrows.Values)
+        {
+            ArrowDataDTO arrowDto = new ArrowDataDTO();
+            arrowDto.id = arrowModel.Id;
+
+            // Збираємо координати точок зі зв'язного списку
+            List<int> cellsList = new List<int>();
+
+            ArrowPoint current = arrowModel.StartPoint;
+            while (current != null)
+            {
+
+                cellsList.Add(current.GridPosition.y); // Row
+                cellsList.Add(current.GridPosition.x); // Col
+
+                current = current.Next;
+            }
+
+            arrowDto.cells = cellsList.ToArray();
+
+            // Напрямок вираховується при завантаженні, тому пишемо нуль (або можна вирахувати)
+            arrowDto.direction = Vector2Int.zero;
+
+            dto.arrows.Add(arrowDto);
+        }
+
+        // true робить JSON красивим (з відступами), щоб ти міг його читати очима
+        return JsonUtility.ToJson(dto, true);
+    }
 }

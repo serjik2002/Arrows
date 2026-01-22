@@ -164,10 +164,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 157adee13aaaba84a9b0dc060925471e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelController
-  _levelJsonFile: {fileID: 4900000, guid: 7652d9c7f776b4945aa73340ef0225d0, type: 3}
   _levelView: {fileID: 618828941}
   _gridView: {fileID: 1575702158}
-  _arrowsGridView: {fileID: 1591388667}
+  _inputHandler: {fileID: 0}
 --- !u!4 &618828943
 Transform:
   m_ObjectHideFlags: 0
@@ -300,6 +299,7 @@ MonoBehaviour:
   _levelView: {fileID: 618828941}
   _camera: {fileID: 1606546509}
   _padding: 1.5
+  saveFileName: level_1
   _gridView: {fileID: 1575702158}
 --- !u!4 &1591388668
 Transform:
@@ -453,6 +453,51 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!1 &1822310460
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1822310462}
+  - component: {fileID: 1822310461}
+  m_Layer: 0
+  m_Name: InputHandler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1822310461
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1822310460}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1be6bf4f3e16b2648a32142afb9dd1d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InputHandler
+  _camera: {fileID: 1606546509}
+--- !u!4 &1822310462
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1822310460}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.5739, y: 0.9093, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1982603546
 GameObject:
   m_ObjectHideFlags: 0
@@ -603,3 +648,4 @@ SceneRoots:
   - {fileID: 1575702159}
   - {fileID: 891398790}
   - {fileID: 1982603548}
+  - {fileID: 1822310462}

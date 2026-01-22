@@ -1,83 +1,128 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class LevelController : MonoBehaviour
 {
-    [Header("Дані")]
-    [SerializeField] private TextAsset _levelJsonFile;
-
     [Header("Посилання")]
     [SerializeField] private LevelView _levelView;
     [SerializeField] private GridView _gridView;
-    [SerializeField] private ArrowLevelManager _arrowsGridView;
+    [SerializeField] private InputHandler _inputHandler;
+
+    [Header("Камера")]
+    [SerializeField] private Camera _camera; // Перетягни сюди Main Camera
+    [SerializeField] private float _padding = 1.5f; // Відступ від країв екрану
 
     private LevelModel _currentLevel;
 
-    private void Start()
-    {
+    public event Action OnLevelCompleted;
 
-        _gridView.Init(_arrowsGridView.height, _arrowsGridView.width);
-        if (_currentLevel != null)
+    private void OnEnable()
+    {
+        if (_inputHandler != null)
         {
-            _levelView.RenderLevel(_currentLevel);
-            PrintGridToConsole(_currentLevel);
+            _inputHandler.OnGridClick += OnGridClicked;
         }
     }
 
-    private void Update()
+    private void OnDisable()
     {
-        // Обробка кліку лівою кнопкою
-        if (Input.GetMouseButtonDown(0))
+        if (_inputHandler != null)
         {
-            ProcessClick();
+            _inputHandler.OnGridClick -= OnGridClicked;
         }
     }
 
-    private void ProcessClick()
+
+    public void Initialize(LevelModel levelModel)
     {
-        if (_currentLevel == null) return;
-
-        // 1. Стріляємо променем (Raycast) в точку мишки
-        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
-
-        // 2. Перевіряємо, чи попали в щось
-        if (hit.collider != null)
+        _currentLevel = levelModel;
+        _gridView.Init(levelModel.Height, levelModel.Width);
+        if (levelModel != null)
         {
-            // Шукаємо компонент GridCell на об'єкті, в який попали
-            GridCell cell = hit.collider.GetComponent<GridCell>();
-
-            if (cell != null)
-            {
-                HandleCellClick(cell.X, cell.Y);
-            }
+            _levelView.RenderLevel(levelModel);
+            PrintGridToConsole(levelModel);
         }
+        FitCameraToGrid(levelModel);
+    }
+
+    private void FitCameraToGrid(LevelModel model)
+    {
+        if (_camera == null || _gridView == null) return;
+
+        float cellSize = _gridView.CellSize;
+        Vector3 startPos = _gridView.StartPosition;
+
+        // --- 1. Знаходимо центр сітки ---
+        // Ширина сітки в одиницях світу
+        float totalWidth = model.Width * cellSize;
+        // Висота сітки (Rows)
+        float totalHeight = model.Height * cellSize;
+
+        // Центр X: від старту зміщуємося вправо на половину ширини
+        // (Мінус половина клітинки, бо координата об'єкта - це його центр, а не край,
+        // але для простоти беремо (cols-1))
+        float centerX = startPos.x + (model.Width - 1) * cellSize / 2.0f;
+
+        // Центр Y: від старту зміщуємося ВНИЗ (тому мінус)
+        // У твоєму GridView (Source 289) Y йде як: start.y - i * size
+        float centerY = startPos.y - (model.Height - 1) * cellSize / 2.0f;
+
+        // Ставимо камеру в центр
+        _camera.transform.position = new Vector3(centerX, centerY, _camera.transform.position.z);
+
+        // --- 2. Розраховуємо Зум (Orthographic Size) ---
+        // OrthographicSize = половина висоти екрану, яку бачить камера.
+
+        // Варіант А: Підганяємо по висоті (Height / 2 + відступи)
+        float targetHeight = (totalHeight / 2.0f) + _padding;
+
+        // Варіант Б: Підганяємо по ширині.
+        // Оскільки камера налаштовується через висоту, конвертуємо ширину у висоту через Aspect Ratio.
+        float aspect = _camera.aspect; // Ширина / Висота
+        float targetWidth = ((totalWidth / 2.0f) + _padding) / aspect;
+
+        // Вибираємо більше значення, щоб сітка точно влізла і по ширині, і по висоті
+        _camera.orthographicSize = Mathf.Max(targetHeight, targetWidth);
+    }
+
+    private void OnGridClicked(GridCoordinate coord)
+    {
+        HandleCellClick(coord.Column, coord.Row);
+        print($"Clicked Cell: X={coord.Column}, Y={coord.Row}");
     }
 
     private void HandleCellClick(int x, int y)
     {
-        // 1. Питаємо у Моделі: Яка стрілка знаходиться в цій клітинці?
-        // (Тобі треба додати метод GetArrowIdAt в LevelModel, якщо його немає, див. нижче)
-        int arrowId = _currentLevel.GetArrowIdAt(y, x);
+        int arrowId = _currentLevel.GetArrowIdAt(x, y); // y, x (Row, Col)
 
-        // Якщо клітинка пуста (0) або маска (-1) - ігноруємо
         if (arrowId <= 0) return;
 
-        // 2. Питаємо у Моделі: Чи може ця стрілка полетіти?
         if (_currentLevel.CanArrowFlyAway(arrowId))
         {
             Debug.Log($"Стрілка {arrowId} полетіла!");
-
-            // А. Видаляємо логічно (звільняємо матрицю)
             _currentLevel.RemoveArrow(arrowId);
-
-            // Б. Видаляємо візуально (зі сцени)
             _levelView.RemoveVisualArrow(arrowId);
+
+            CheckLevelEnd();
         }
         else
         {
             Debug.Log($"Стрілка {arrowId} заблокована!");
-            // Тут можна додати ефект "трусіння" (Wiggle animation)
+            // Тут можна додати анімацію трусіння
+        }
+    }
+
+    private void CheckLevelEnd()
+    {
+        if (_currentLevel.Arrows.Count == 0)
+        {
+            Debug.Log("LEVEL COMPLETE!");
+
+            // Можна вимкнути введення, щоб гравець не клікав під час екрану перемоги
+            if (_inputHandler != null) _inputHandler.SetInputActive(false);
+
+            OnLevelCompleted?.Invoke();
         }
     }
 

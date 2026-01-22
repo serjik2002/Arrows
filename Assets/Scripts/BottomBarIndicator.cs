@@ -1,19 +1,27 @@
 using UnityEngine;
 using System.Collections;
+using DG.Tweening;
 
 public class BottomBarIndicator : MonoBehaviour
 {
     [SerializeField] private RectTransform _indicator;
+    [Range(0.0f, 2f)]
+    [SerializeField] private float _scaleAnimfactor = 0.9f;
     [SerializeField] private float _moveDuration = 0.25f;
 
     private Coroutine _moveCoroutine;
 
     public void MoveTo(RectTransform target)
     {
-        if (_moveCoroutine != null)
-            StopCoroutine(_moveCoroutine);
+        //if (_moveCoroutine != null)
+          //  StopCoroutine(_moveCoroutine);
 
-        _moveCoroutine = StartCoroutine(MoveIndicator(target));
+        //_moveCoroutine = StartCoroutine(MoveIndicator(target));
+        _indicator.DOMoveX(target.position.x, _moveDuration);
+        _indicator.DOScaleY(_scaleAnimfactor, _moveDuration / 2).OnComplete(() =>
+        {
+            _indicator.DOScale(Vector3.one, _moveDuration / 2);
+        });
     }
 
     IEnumerator MoveIndicator(RectTransform target)

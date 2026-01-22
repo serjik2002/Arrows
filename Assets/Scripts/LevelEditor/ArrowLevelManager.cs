@@ -1,6 +1,7 @@
 ﻿using ArrowPuzzle;
 using System.Collections.Generic;
 using UnityEngine;
+using System.IO;
 
 public class ArrowLevelManager : MonoBehaviour
 {
@@ -17,6 +18,9 @@ public class ArrowLevelManager : MonoBehaviour
     [Header("Налаштування камери")]
     [SerializeField] private Camera _camera; // Перетягніть сюди Main Camera
     [SerializeField] private float _padding = 1.5f; // Відступ від країв екрану
+
+    [Header("Збереження")]
+    public string saveFileName = "level_1";
 
     // ДОДАЙТЕ ЦЕ ПОСИЛАННЯ В ІНСПЕКТОРІ:
     [SerializeField] private GridView _gridView;
@@ -63,6 +67,48 @@ public class ArrowLevelManager : MonoBehaviour
     private void Update()
     {
         if (Input.GetMouseButtonDown(0)) ProcessClick();
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            SaveCurrentLevel();
+        }
+
+        // НОВЕ: Натисни 'G', щоб згенерувати новий (для швидкого пошуку крутого рівня)
+        if (Input.GetKeyDown(KeyCode.G))
+        {
+            Generate();
+        }
+    }
+
+    public void SaveCurrentLevel()
+    {
+        if (_currentLevel == null)
+        {
+            Debug.LogError("Немає рівня для збереження!");
+            return;
+        }
+
+        // 1. Конвертуємо рівень у текст JSON
+        string json = LevelLoader.SaveToJSON(_currentLevel);
+
+        // 2. Визначаємо шлях до папки Resources/Levels
+        // Використовуємо Application.dataPath, щоб зберегти прямо в папку проекту Unity
+        string path = Path.Combine(Application.dataPath, "Resources/Levels");
+
+        // Створюємо папку, якщо її немає
+        if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+
+        // 3. Формуємо повний шлях до файлу
+        string fullPath = Path.Combine(path, saveFileName + ".json");
+
+        // 4. Записуємо файл
+        File.WriteAllText(fullPath, json);
+
+        Debug.Log($"✅ Рівень збережено! Шлях: {fullPath}");
+
+#if UNITY_EDITOR
+        // Оновлюємо базу ассетів Unity, щоб файл одразу з'явився у вікні Project
+        UnityEditor.AssetDatabase.Refresh();
+#endif
     }
 
     private void ProcessClick()

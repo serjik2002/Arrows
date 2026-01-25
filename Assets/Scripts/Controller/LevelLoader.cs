@@ -44,12 +44,12 @@ public static class LevelLoader
 
             if (points.Count > 0)
             {
-                ArrowPoint first = new ArrowPoint { GridPosition = points[0] };
+                ArrowPoint first = new ArrowPoint { GridPosition = new GridCoordinate(points[0].x, points[0].y) };
                 ArrowPoint current = first;
 
                 for (int i = 1; i < points.Count; i++)
                 {
-                    ArrowPoint nextP = new ArrowPoint { GridPosition = points[i] };
+                    ArrowPoint nextP = new ArrowPoint { GridPosition = new GridCoordinate(points[i].x, points[i].y) };
                     current.Next = nextP;
                     nextP.Prev = current;
                     current = nextP;
@@ -84,8 +84,8 @@ public static class LevelLoader
             while (current != null)
             {
 
-                cellsList.Add(current.GridPosition.y); // Row
-                cellsList.Add(current.GridPosition.x); // Col
+                cellsList.Add(current.GridPosition.Row); // Row
+                cellsList.Add(current.GridPosition.Column); // Col
 
                 current = current.Next;
             }

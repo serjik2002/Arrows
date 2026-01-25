@@ -36,8 +36,6 @@ public class InputHandler : MonoBehaviour
     {
         coord = default;
         Vector2 mousePos = _camera.ScreenToWorldPoint(Input.mousePosition);
-
-        // ВАЖЛИВО: Переконайся, що на GridCell є BoxCollider2D
         RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
 
         if (hit.collider != null)
@@ -45,10 +43,7 @@ public class InputHandler : MonoBehaviour
             var cell = hit.collider.GetComponent<GridCell>();
             if (cell != null)
             {
-                // Створюємо координату (X = Column, Y = Row)
-                coord = new GridCoordinate(cell.X, cell.Y);
-
-                // Викликаємо подію!
+                coord = new GridCoordinate(cell.Column, cell.Row);
                 OnGridClick?.Invoke(coord);
                 return true;
             }
@@ -59,8 +54,8 @@ public class InputHandler : MonoBehaviour
 
 public struct GridCoordinate
 {
-    public int Column { get; private set; } // X
-    public int Row { get; private set; }    // Y
+    public int Row { get; private set; }
+    public int Column { get; private set; }
 
     public GridCoordinate(int col, int row)
     {

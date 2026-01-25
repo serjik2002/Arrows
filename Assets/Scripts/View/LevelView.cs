@@ -80,11 +80,11 @@ public class LevelView : MonoBehaviour
         // Будуємо шлях
         List<Vector3> worldPositions = new List<Vector3>();
         ArrowPoint current = arrow.StartPoint;
-        worldPositions.Add(GridToWorld(current.GridPosition));
+        worldPositions.Add(GridToWorld(current.GridPosition.ToVector2Int()));
 
         while (current.Next != null)
         {
-            AddIntermediatePoints(worldPositions, current.GridPosition, current.Next.GridPosition);
+            AddIntermediatePoints(worldPositions, current.GridPosition.ToVector2Int(), current.Next.GridPosition.ToVector2Int());
             current = current.Next;
         }
 
@@ -111,8 +111,8 @@ public class LevelView : MonoBehaviour
     {
         if (arrow.EndPoint == null || arrow.EndPoint.Prev == null) return null;
 
-        Vector3 endPos = GridToWorld(arrow.EndPoint.GridPosition);
-        Vector3 prevPos = GridToWorld(arrow.EndPoint.Prev.GridPosition);
+        Vector3 endPos = GridToWorld(arrow.EndPoint.GridPosition.ToVector2Int());
+        Vector3 prevPos = GridToWorld(arrow.EndPoint.Prev.GridPosition.ToVector2Int());
         Vector3 dir = (endPos - prevPos).normalized;
 
         // Визначаємо кут (твоя логіка)

@@ -86,7 +86,7 @@ namespace ArrowPuzzle
                 for (int k = 0; k < snake.cells.Count; k++)
                 {
                     Vector2Int pos = snake.cells[k];
-                    ArrowPoint p = new ArrowPoint { GridPosition = pos };
+                    ArrowPoint p = new ArrowPoint { GridPosition = new GridCoordinate(pos.x, pos.y) };
 
                     if (prevPoint != null)
                     {

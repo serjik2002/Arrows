@@ -16,12 +16,7 @@ public class LevelDataDTO
 public class ArrowDataDTO
 {
     public int id;
-    public int[] cells; // Плоский масив [x,y,x,y...]
-    public Vector2Int direction; // Поки не використовуємо, бо вираховуємо математично, але хай буде
+    public int[] cells; 
+    public Vector2Int direction; 
 }
 
-public class ArrowPath
-{
-    public ArrowPoint startPoint;
-    public ArrowPoint endPoint;
-}

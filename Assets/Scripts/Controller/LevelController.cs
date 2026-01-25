@@ -56,7 +56,7 @@ public class LevelController : MonoBehaviour
             return;
         }
 
-        int arrowId = _currentLevel.GetArrowIdAt(coord.Column, coord.Row);
+        int arrowId = _currentLevel.GetArrowIdAt(coord);
 
         if (arrowId <= 0)
         {

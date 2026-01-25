@@ -23,8 +23,8 @@ public class LevelModel
     {
         if (!Arrows.TryGetValue(arrowId, out ArrowModel arrow)) return false;
 
-        Vector2Int headPos = arrow.EndPoint.GridPosition;
-        Vector2Int prevPos = arrow.EndPoint.Prev.GridPosition;
+        Vector2Int headPos = arrow.EndPoint.GridPosition.ToVector2Int();
+        Vector2Int prevPos = arrow.EndPoint.Prev.GridPosition.ToVector2Int();
         Vector2Int direction = headPos - prevPos;
 
         Vector2Int checkPos = headPos + direction;
@@ -50,7 +50,7 @@ public class LevelModel
         while (current != null)
         {
             // Очищаємо: [y, x]
-            OccupiedGrid[current.GridPosition.y, current.GridPosition.x] = 0;
+            OccupiedGrid[current.GridPosition.Row, current.GridPosition.Column] = 0;
             current = current.Next;
         }
 
@@ -63,13 +63,17 @@ public class LevelModel
         return pos.x >= 0 && pos.x < Width && pos.y >= 0 && pos.y < Height;
     }
 
-    public int GetArrowIdAt(int x, int y)
+    public int GetArrowIdAt(int column, int row)
     {
-        if (IsInsideGrid(new Vector2Int(x, y)))
+        if (row >= 0 && row < Height && column >= 0 && column < Width)
         {
-            // Повертаємо значення з рядка Y, стовпця X
-            return OccupiedGrid[y, x];
+            return OccupiedGrid[row, column];
         }
         return -1;
+    }
+
+    public int GetArrowIdAt(GridCoordinate coord)
+    {
+        return GetArrowIdAt(coord.Column, coord.Row);
     }
 }

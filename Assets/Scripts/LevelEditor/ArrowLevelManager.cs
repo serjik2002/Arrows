@@ -92,14 +92,17 @@ public class ArrowLevelManager : MonoBehaviour
         while (_currentLevel.Arrows.Count != 0)
         {
             var arrowCount = _currentLevel.Arrows.Count;
-            for (int i = 0; i < height; i++)
+            for (int row = 0; row < height; row++)
             {
-                for(int j = 0; j < width; j++)
+                for (int col = 0; col < width; col++)
                 {
-                    HandleCellClick(i, j);
+                    HandleCellClick(col, row);  // ✅ (Column, Row)
+                                                // ИЛИ
+                    var coord = new GridCoordinate(col, row);
+                    //ProcessClick(coord);
                 }
             }
-            if(arrowCount == _currentLevel.Arrows.Count)
+            if (arrowCount == _currentLevel.Arrows.Count)
             {
                 Debug.Log("Рівень не розв'язується!");
                 return;
@@ -150,7 +153,7 @@ public class ArrowLevelManager : MonoBehaviour
             var cell = hit.collider.GetComponent<GridCell>();
             if (cell != null)
             {
-                HandleCellClick(cell.X, cell.Y);
+                HandleCellClick(cell.Column, cell.Row);
             }
         }
     }

@@ -3,16 +3,15 @@
 [RequireComponent(typeof(BoxCollider2D))]
 public class GridCell : MonoBehaviour
 {
-    public int X { get; private set; }
-    public int Y { get; private set; }
+    public int Column { get; private set; }
+    public int Row { get; private set; }
+    public GridCoordinate Position => new GridCoordinate(Column, Row);
 
-    // Убрали manager, оставили только координаты и размер
-    public void Init(int x, int y, float size)
+    public void Init(int col, int row, float size)
     {
-        X = x;
-        Y = y;
+        Column = col;
+        Row = row;
 
-        // Настраиваем размер колайдера
         var collider = GetComponent<BoxCollider2D>();
         if (collider != null)
         {

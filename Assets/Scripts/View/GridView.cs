@@ -13,6 +13,8 @@ public class GridView : MonoBehaviour
     public Vector2[,] PointPositions => _pointPositions;
     public float CellSize => _cellSize;
     public Vector3 StartPosition => _startPosition != null ? _startPosition.position : transform.position;
+    public int Rows => _rows;
+    public int Columns => _columns;
 
 
 

@@ -77,6 +77,34 @@ public class ArrowLevelManager : MonoBehaviour
         {
             Generate();
         }
+
+        if (Input.GetKeyDown(KeyCode.C))
+        {
+            TrySolve();
+        }
+
+
+    }
+
+    public void TrySolve()
+    {
+        
+        while (_currentLevel.Arrows.Count != 0)
+        {
+            var arrowCount = _currentLevel.Arrows.Count;
+            for (int i = 0; i < height; i++)
+            {
+                for(int j = 0; j < width; j++)
+                {
+                    HandleCellClick(i, j);
+                }
+            }
+            if(arrowCount == _currentLevel.Arrows.Count)
+            {
+                Debug.Log("Рівень не розв'язується!");
+                return;
+            }
+        }
     }
 
     public void SaveCurrentLevel()

@@ -43,7 +43,7 @@ public class LevelController : MonoBehaviour
         {
             _levelView.RenderLevel(levelModel);
         }
-        _cameraController.FitCameraToGrid(_currentLevel.Height, _currentLevel.Width, _gridView.CellSize, _gridView.StartPosition);
+        _cameraController.FitToGrid(_currentLevel.Height, _currentLevel.Width, _gridView.CellSize, _gridView.StartPosition);
     }
 
     #endregion

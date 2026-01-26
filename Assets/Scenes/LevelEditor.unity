@@ -152,6 +152,8 @@ MonoBehaviour:
   _gridView: {fileID: 1575702158}
   _arrowPrefab: {fileID: 1982603546}
   _headPrefab: {fileID: 6466847443641953272, guid: 7ccd2822aea8b2e4c81094d6bc4d6f65, type: 3}
+  _snakeSpeed: 5
+  _offScreenDistance: 10
 --- !u!114 &618828942
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -166,9 +168,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelController
   _levelView: {fileID: 618828941}
   _gridView: {fileID: 1575702158}
-  _inputHandler: {fileID: 0}
-  _camera: {fileID: 0}
-  _padding: 1.5
+  _inputHandler: {fileID: 1822310461}
+  _cameraController: {fileID: 1499627964}
 --- !u!4 &618828943
 Transform:
   m_ObjectHideFlags: 0
@@ -184,7 +185,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &891398789
+--- !u!1 &830682035
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -192,24 +193,73 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 891398790}
+  - component: {fileID: 830682036}
   m_Layer: 0
-  m_Name: start
+  m_Name: Start
   m_TagString: Untagged
-  m_Icon: {fileID: -5442936267250999957, guid: 0000000000000000d000000000000000, type: 0}
+  m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &891398790
+--- !u!4 &830682036
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 891398789}
+  m_GameObject: {fileID: 830682035}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2, y: 2.99, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1499627963
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1499627965}
+  - component: {fileID: 1499627964}
+  m_Layer: 0
+  m_Name: CameraController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1499627964
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1499627963}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d21daa2a4888a4479a5eb78ec4c8d68, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraController
+  _camera: {fileID: 1606546509}
+  _padding: 1.5
+  _autoAssignMainCamera: 1
+  _showDebugGizmos: 1
+  _gizmoColor: {r: 0, g: 1, b: 1, a: 1}
+--- !u!4 &1499627965
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1499627963}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.30238, y: 2.84061, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -247,7 +297,7 @@ MonoBehaviour:
   _rows: 10
   _columns: 10
   _cellSize: 1
-  _startPosition: {fileID: 891398790}
+  _startPosition: {fileID: 0}
   _cellPrefab: {fileID: 7592009362689963922, guid: 83fbefe55e2dd684c84cd2dfc5f99607, type: 3}
 --- !u!4 &1575702159
 Transform:
@@ -259,60 +309,6 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 7.21244, y: 0.00699, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1591388666
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1591388668}
-  - component: {fileID: 1591388667}
-  m_Layer: 0
-  m_Name: LevelEditor
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1591388667
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1591388666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c1c722f4bd18fe64dad09e9ae3ee78a1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ArrowPuzzle.ArrowLevelManager
-  width: 20
-  height: 20
-  minLength: 2
-  maxLength: 8
-  turnChance: 1
-  _levelView: {fileID: 618828941}
-  _camera: {fileID: 1606546509}
-  _padding: 1.5
-  saveFileName: level_1
-  _gridView: {fileID: 1575702158}
---- !u!4 &1591388668
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1591388666}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.18634, y: -0.06751, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -640,14 +636,107 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1990032714
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1990032717}
+  - component: {fileID: 1990032716}
+  - component: {fileID: 1990032715}
+  m_Layer: 0
+  m_Name: LevelGenrator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1990032715
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1990032714}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f26619a3b693f074e8a411c7320076f9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SimpleGeneratorUI
+  _generator: {fileID: 1990032716}
+  _widthSlider: {fileID: 0}
+  _heightSlider: {fileID: 0}
+  _minLengthSlider: {fileID: 0}
+  _maxLengthSlider: {fileID: 0}
+  _turnChanceSlider: {fileID: 0}
+  _widthText: {fileID: 0}
+  _heightText: {fileID: 0}
+  _minLengthText: {fileID: 0}
+  _maxLengthText: {fileID: 0}
+  _turnChanceText: {fileID: 0}
+  _randomSeedToggle: {fileID: 0}
+  _seedInput: {fileID: 0}
+--- !u!114 &1990032716
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1990032714}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89c5f72cc684381439bda01f28d8b3e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayModeLevelGenerator
+  _levelController: {fileID: 618828942}
+  _gridView: {fileID: 1575702158}
+  _levelView: {fileID: 618828941}
+  _cameraController: {fileID: 1499627964}
+  _width: 6
+  _height: 8
+  _minLength: 2
+  _maxLength: 8
+  _turnChance: 0.6
+  _useRandomSeed: 1
+  _seed: -1
+  _levelName: test_level
+  _autoIncrement: 1
+  _levelNumber: 1
+  _infoText: {fileID: 0}
+  _generateButton: {fileID: 0}
+  _saveButton: {fileID: 0}
+  _solveButton: {fileID: 0}
+  _generateKey: 103
+  _saveKey: 115
+  _solveKey: 99
+  _validateKey: 118
+--- !u!4 &1990032717
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1990032714}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.30238, y: 2.84061, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1606546510}
-  - {fileID: 1591388668}
   - {fileID: 618828943}
   - {fileID: 1575702159}
-  - {fileID: 891398790}
   - {fileID: 1982603548}
   - {fileID: 1822310462}
+  - {fileID: 1990032717}
+  - {fileID: 1499627965}
+  - {fileID: 830682036}

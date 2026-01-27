@@ -19,9 +19,13 @@ public class LevelModel
         }
     }
 
-    public bool CanArrowFlyAway(int arrowId)
+    public bool CanArrowFlyAway(int arrowId, out GridCoordinate blockedCell)
     {
-        if (!Arrows.TryGetValue(arrowId, out ArrowModel arrow)) return false;
+        if (!Arrows.TryGetValue(arrowId, out ArrowModel arrow))
+        {
+            blockedCell = new GridCoordinate(0, 0);
+            return false;
+        }
 
         Vector2Int headPos = arrow.EndPoint.GridPosition.ToVector2Int();
         Vector2Int prevPos = arrow.EndPoint.Prev.GridPosition.ToVector2Int();
@@ -34,11 +38,16 @@ public class LevelModel
             // Звертаємось: [y, x] (тому що Grid[Row, Col])
             int cellValue = OccupiedGrid[checkPos.y, checkPos.x];
 
-            if (cellValue > 0) return false;
+            if (cellValue > 0)
+            {
+                blockedCell = new GridCoordinate(checkPos.x, checkPos.y);
+                return false;
+            }
 
             checkPos += direction;
         }
 
+        blockedCell = new GridCoordinate();
         return true;
     }
 

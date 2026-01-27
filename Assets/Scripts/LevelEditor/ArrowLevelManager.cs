@@ -163,17 +163,17 @@ public class ArrowLevelManager : MonoBehaviour
         int arrowId = _currentLevel.GetArrowIdAt(x, y);
         if (arrowId <= 0) return;
 
-        if (_currentLevel.CanArrowFlyAway(arrowId))
-        {
-            Debug.Log($"Стрілка {arrowId} полетіла!");
-            _currentLevel.RemoveArrow(arrowId);
-            _levelView.RemoveVisualArrow(arrowId);
-            CheckWin();
-        }
-        else
-        {
-            Debug.Log($"Стрілка {arrowId} заблокована!");
-        }
+        //if (_currentLevel.CanArrowFlyAway(arrowId))
+        //{
+        //    Debug.Log($"Стрілка {arrowId} полетіла!");
+        //    _currentLevel.RemoveArrow(arrowId);
+        //    _levelView.RemoveVisualArrow(arrowId);
+        //    CheckWin();
+        //}
+        //else
+        //{
+        //    Debug.Log($"Стрілка {arrowId} заблокована!");
+        //}
     }
 
     private void CheckWin()

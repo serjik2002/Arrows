@@ -153,7 +153,10 @@ MonoBehaviour:
   _arrowPrefab: {fileID: 1982603546}
   _headPrefab: {fileID: 6466847443641953272, guid: 7ccd2822aea8b2e4c81094d6bc4d6f65, type: 3}
   _snakeSpeed: 5
-  _offScreenDistance: 10
+  _offScreenDistance: 100
+  _errorColor: {r: 1, g: 0, b: 0, a: 1}
+  _contactOffset: 0.3
+  _bumpSpeed: 55
 --- !u!114 &618828942
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -297,7 +300,7 @@ MonoBehaviour:
   _rows: 10
   _columns: 10
   _cellSize: 1
-  _startPosition: {fileID: 0}
+  _startPosition: {fileID: 830682036}
   _cellPrefab: {fileID: 7592009362689963922, guid: 83fbefe55e2dd684c84cd2dfc5f99607, type: 3}
 --- !u!4 &1575702159
 Transform:
@@ -610,8 +613,8 @@ LineRenderer:
       m_ColorSpace: 0
       m_NumColorKeys: 2
       m_NumAlphaKeys: 2
-    numCornerVertices: 0
-    numCapVertices: 0
+    numCornerVertices: 30
+    numCapVertices: 30
     alignment: 0
     textureMode: 0
     textureScale: {x: 1, y: 1}
@@ -695,11 +698,11 @@ MonoBehaviour:
   _gridView: {fileID: 1575702158}
   _levelView: {fileID: 618828941}
   _cameraController: {fileID: 1499627964}
-  _width: 6
-  _height: 8
-  _minLength: 2
-  _maxLength: 8
-  _turnChance: 0.6
+  _width: 15
+  _height: 15
+  _minLength: 4
+  _maxLength: 15
+  _turnChance: 0.4
   _useRandomSeed: 1
   _seed: -1
   _levelName: test_level

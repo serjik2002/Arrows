@@ -14,6 +14,11 @@ public class LevelView : MonoBehaviour
     [SerializeField] private float _snakeSpeed = 5f; // Швидкість уползання
     [SerializeField] private float _offScreenDistance = 10f; // Наскільки далеко повзти за межі
 
+    [Header("Анімація Помилки")]
+    [SerializeField] private Color _errorColor = Color.red; // Колір помилки
+    [SerializeField] private float _contactOffset = 0.3f;    // Наскільки сильно стрілка "вдаряється" вперед
+    [SerializeField] private float _bumpSpeed = 10f;        // Швидкість удару і відкату
+
     // Зберігаємо не тільки об'єкт, а й його голову та оригінальний шлях
     private class ArrowVisualData
     {
@@ -33,6 +38,96 @@ public class LevelView : MonoBehaviour
             if (data.RootObject != null) Destroy(data.RootObject);
         }
         _visualArrows.Clear();
+    }
+
+    // Метод, який викликається ззовні (наприклад, з контролера)
+    // Тепер передаємо координату клітинки, яка заблокувала рух
+    public void AnimateBlockedArrow(int arrowId, Vector2Int blockerGridPos)
+    {
+        if (_visualArrows.TryGetValue(arrowId, out ArrowVisualData data))
+        {
+            StopAllCoroutines();
+            StartCoroutine(CrawlToBlockRoutine(data, blockerGridPos));
+        }
+    }
+
+    private IEnumerator CrawlToBlockRoutine(ArrowVisualData data, Vector2Int blockerGridPos)
+    {
+        LineRenderer lr = data.LineRenderer;
+        Transform head = data.HeadTransform;
+        List<Vector3> originalPath = data.FullPath;
+
+        if (originalPath == null || originalPath.Count < 2) yield break;
+
+        // 1. ФАРБУЄМО В ЧЕРВОНИЙ
+        Color originalStartColor = lr.startColor; // (Опціонально) можна зберегти старий колір
+        Color originalEndColor = lr.endColor;
+
+        lr.startColor = _errorColor;
+        lr.endColor = _errorColor;
+
+        var spriteRenderer = head.GetComponentInChildren<SpriteRenderer>();
+        if (spriteRenderer != null) spriteRenderer.color = _errorColor;
+
+        // 2. ВИРАХОВУЄМО ТОЧКУ УДАРУ
+        // Остання точка поточного шляху (де зараз голова)
+        Vector3 currentHeadPos = originalPath[originalPath.Count - 1];
+
+        // Позиція перешкоди у світі
+        Vector3 blockerWorldPos = GridToWorld(blockerGridPos);
+
+        // Вектор до перешкоди
+        Vector3 dirToBlocker = (blockerWorldPos - currentHeadPos).normalized;
+        float distToBlocker = Vector3.Distance(currentHeadPos, blockerWorldPos);
+
+        // Віднімаємо невеликий офсет, якщо не хочемо, щоб центри співпадали ідеально
+        // (наприклад, щоб голова зупинилася на краю клітинки, а не в центрі)
+        float travelDist = Mathf.Max(0, distToBlocker - _contactOffset);
+
+        // Створюємо розширений шлях (додаємо точку фінішу)
+        List<Vector3> extendedPath = new List<Vector3>(originalPath);
+        extendedPath.Add(currentHeadPos + dirToBlocker * travelDist);
+
+        float snakeLength = GetPathLength(originalPath);
+
+        // 3. РУХ ДО ПЕРЕШКОДИ (Змійка повзе вперед)
+        float currentShift = 0f;
+        while (currentShift < travelDist)
+        {
+            currentShift += Time.deltaTime * _bumpSpeed;
+            if (currentShift > travelDist) currentShift = travelDist;
+
+            // Зсуваємо голову вперед, хвіст підтягується
+            float headDist = snakeLength + currentShift;
+            float tailDist = currentShift;
+
+            UpdateLineRendererByPath(lr, extendedPath, tailDist, headDist);
+            UpdateHeadPosition(head, extendedPath, headDist);
+
+            yield return null;
+        }
+
+        // Ефект удару (коротка пауза або тремтіння камери можна додати тут)
+        yield return new WaitForSeconds(0.05f);
+
+        // 4. РУХ НАЗАД (Повземо на своє місце)
+        while (currentShift > 0f)
+        {
+            currentShift -= Time.deltaTime * _bumpSpeed;
+            if (currentShift < 0f) currentShift = 0f;
+
+            float headDist = snakeLength + currentShift;
+            float tailDist = currentShift;
+
+            UpdateLineRendererByPath(lr, extendedPath, tailDist, headDist);
+            UpdateHeadPosition(head, extendedPath, headDist);
+
+            yield return null;
+        }
+
+        // 5. ВІДНОВЛЕННЯ ІДЕАЛЬНОЇ ПОЗИЦІЇ
+        UpdateLineRendererByPath(lr, originalPath, 0, snakeLength);
+        UpdateHeadPosition(head, originalPath, snakeLength);
     }
 
     // Додаємо параметр animate = true за замовчуванням

@@ -13,6 +13,7 @@ public class LevelController : MonoBehaviour
     [SerializeField] private CameraController _cameraController;
 
     private LevelModel _currentLevel;
+    private GridCoordinate _blockedCell;
 
     public LevelModel CurrentLevel => _currentLevel;
     public event Action OnLevelCompleted;
@@ -64,7 +65,7 @@ public class LevelController : MonoBehaviour
             return;
         }
 
-        if (_currentLevel.CanArrowFlyAway(arrowId))
+        if (_currentLevel.CanArrowFlyAway(arrowId, out _blockedCell))
         {
             HandleArrowRemoval(arrowId);
         }
@@ -93,7 +94,7 @@ public class LevelController : MonoBehaviour
         Debug.Log($"[LevelController] Arrow {arrowId} is blocked!");
 
         // TODO: Add shake animation or visual feedback
-        // _levelView.ShakeArrow(arrowId);
+        _levelView.AnimateBlockedArrow(arrowId, _blockedCell.ToVector2Int());
     }
 
     #region Level Completion

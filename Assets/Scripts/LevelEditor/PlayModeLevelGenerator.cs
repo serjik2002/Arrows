@@ -212,6 +212,7 @@ public class PlayModeLevelGenerator : MonoBehaviour
         int moves = 0;
         int maxMoves = 1000;
         bool stuck = false;
+        GridCoordinate blockedCell;
 
         while (testLevel.Arrows.Count > 0 && moves < maxMoves)
         {
@@ -220,7 +221,7 @@ public class PlayModeLevelGenerator : MonoBehaviour
             // Check all arrows
             foreach (var arrow in testLevel.Arrows.Values)
             {
-                if (testLevel.CanArrowFlyAway(arrow.Id))
+                if (testLevel.CanArrowFlyAway(arrow.Id, out blockedCell))
                 {
                     testLevel.RemoveArrow(arrow.Id);
                     moves++;

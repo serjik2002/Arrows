@@ -37,7 +37,7 @@ public class SimpleGeneratorUI : MonoBehaviour
     {
         if (_generator == null)
         {
-            _generator = FindObjectOfType<PlayModeLevelGenerator>();
+            _generator = FindFirstObjectByType<PlayModeLevelGenerator>();
         }
 
         SetupSliders();

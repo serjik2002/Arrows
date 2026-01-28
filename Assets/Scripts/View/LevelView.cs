@@ -18,6 +18,12 @@ public class LevelView : MonoBehaviour
     [SerializeField] private Color _errorColor = Color.red; // Колір помилки
     [SerializeField] private float _contactOffset = 0.3f;    // Наскільки сильно стрілка "вдаряється" вперед
     [SerializeField] private float _bumpSpeed = 10f;        // Швидкість удару і відкату
+    [SerializeField] private float _bumpDuration = 0.15f;
+
+    private float EaseOutCubic(float t) => 1f - Mathf.Pow(1f - t, 3f);
+    private float EaseInCubic(float t) => t * t * t;
+    private float EaseInOutQuad(float t) => t < 0.5f ? 2f * t * t : 1f - Mathf.Pow(-2f * t + 2f, 2f) / 2f;
+
 
     // Зберігаємо не тільки об'єкт, а й його голову та оригінальний шлях
     private class ArrowVisualData
@@ -51,6 +57,7 @@ public class LevelView : MonoBehaviour
         }
     }
 
+    // Повністю замінити метод CrawlToBlockRoutine
     private IEnumerator CrawlToBlockRoutine(ArrowVisualData data, Vector2Int blockerGridPos)
     {
         LineRenderer lr = data.LineRenderer;
@@ -60,44 +67,41 @@ public class LevelView : MonoBehaviour
         if (originalPath == null || originalPath.Count < 2) yield break;
 
         // 1. ФАРБУЄМО В ЧЕРВОНИЙ
-        Color originalStartColor = lr.startColor; // (Опціонально) можна зберегти старий колір
+        Color originalStartColor = lr.startColor;
         Color originalEndColor = lr.endColor;
 
         lr.startColor = _errorColor;
         lr.endColor = _errorColor;
 
         var spriteRenderer = head.GetComponentInChildren<SpriteRenderer>();
-        if (spriteRenderer != null) spriteRenderer.color = _errorColor;
+        Color originalHeadColor = Color.white;
+        if (spriteRenderer != null)
+        {
+            originalHeadColor = spriteRenderer.color;
+            spriteRenderer.color = _errorColor;
+        }
 
         // 2. ВИРАХОВУЄМО ТОЧКУ УДАРУ
-        // Остання точка поточного шляху (де зараз голова)
         Vector3 currentHeadPos = originalPath[originalPath.Count - 1];
-
-        // Позиція перешкоди у світі
         Vector3 blockerWorldPos = GridToWorld(blockerGridPos);
-
-        // Вектор до перешкоди
         Vector3 dirToBlocker = (blockerWorldPos - currentHeadPos).normalized;
         float distToBlocker = Vector3.Distance(currentHeadPos, blockerWorldPos);
-
-        // Віднімаємо невеликий офсет, якщо не хочемо, щоб центри співпадали ідеально
-        // (наприклад, щоб голова зупинилася на краю клітинки, а не в центрі)
         float travelDist = Mathf.Max(0, distToBlocker - _contactOffset);
 
-        // Створюємо розширений шлях (додаємо точку фінішу)
         List<Vector3> extendedPath = new List<Vector3>(originalPath);
         extendedPath.Add(currentHeadPos + dirToBlocker * travelDist);
 
         float snakeLength = GetPathLength(originalPath);
 
-        // 3. РУХ ДО ПЕРЕШКОДИ (Змійка повзе вперед)
-        float currentShift = 0f;
-        while (currentShift < travelDist)
+        // 3. РУХ ДО ПЕРЕШКОДИ з easing (EaseOutCubic - швидкий старт, плавне гальмування)
+        float elapsed = 0f;
+        while (elapsed < _bumpDuration)
         {
-            currentShift += Time.deltaTime * _bumpSpeed;
-            if (currentShift > travelDist) currentShift = travelDist;
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / _bumpDuration);
+            float easedT = EaseInOutQuad(t);
+            float currentShift = easedT * travelDist;
 
-            // Зсуваємо голову вперед, хвіст підтягується
             float headDist = snakeLength + currentShift;
             float tailDist = currentShift;
 
@@ -107,14 +111,20 @@ public class LevelView : MonoBehaviour
             yield return null;
         }
 
-        // Ефект удару (коротка пауза або тремтіння камери можна додати тут)
+        // Фінальна позиція
+        UpdateLineRendererByPath(lr, extendedPath, travelDist, snakeLength + travelDist);
+        UpdateHeadPosition(head, extendedPath, snakeLength + travelDist);
+
         yield return new WaitForSeconds(0.05f);
 
-        // 4. РУХ НАЗАД (Повземо на своє місце)
-        while (currentShift > 0f)
+        // 4. РУХ НАЗАД з easing (EaseInCubic - повільний старт, швидкий відскок)
+        elapsed = 0f;
+        while (elapsed < _bumpDuration)
         {
-            currentShift -= Time.deltaTime * _bumpSpeed;
-            if (currentShift < 0f) currentShift = 0f;
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / _bumpDuration);
+            float easedT = EaseInCubic(t);
+            float currentShift = travelDist * (1f - easedT);
 
             float headDist = snakeLength + currentShift;
             float tailDist = currentShift;
@@ -125,9 +135,16 @@ public class LevelView : MonoBehaviour
             yield return null;
         }
 
-        // 5. ВІДНОВЛЕННЯ ІДЕАЛЬНОЇ ПОЗИЦІЇ
+        // 5. ВІДНОВЛЕННЯ
         UpdateLineRendererByPath(lr, originalPath, 0, snakeLength);
         UpdateHeadPosition(head, originalPath, snakeLength);
+
+        lr.startColor = originalStartColor;
+        lr.endColor = originalEndColor;
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.color = originalHeadColor;
+        }
     }
 
     // Додаємо параметр animate = true за замовчуванням
